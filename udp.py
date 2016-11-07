@@ -131,6 +131,8 @@ def checksum_func(data):
     return checksum
 
 def ip2int(ip_addr):
+    if ip_addr == 'localhost':
+        ip_addr = '127.0.0.1'
     return [int(x) for x in ip_addr.split('.')]
 
 def udp_recv(addr, size):
@@ -163,3 +165,5 @@ def verify_checksum(data, checksum):
 
     return checksum
 
+if __name__ == '__main__':
+    udp_send("hello",('localhost', 12345)) 
