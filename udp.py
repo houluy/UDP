@@ -75,13 +75,13 @@ def parse(data):
     packet['TTL']           = data[TTL_OFF]
     packet['Protocol']      = data[PROTOCOL_OFF]
     packet['Checksum']      = (data[IP_CHECKSUM_OFF] << 8) + data[IP_CHECKSUM_OFF + 1]
-    packet['src_ip']        = '.'.join(list(map(str, [data[x] for x in range(SRC_IP_OFF, SRC_IP_OFF + 4)])))
-    packet['dest_ip']       = '.'.join(list(map(str, [data[x] for x in range(DEST_IP_OFF, DEST_IP_OFF + 4)])))
+    packet['src_ip']        = '.'.join(map(str, [data[x] for x in range(SRC_IP_OFF, SRC_IP_OFF + 4)]))
+    packet['dest_ip']       = '.'.join(map(str, [data[x] for x in range(DEST_IP_OFF, DEST_IP_OFF + 4)]))
     packet['src_port']      = (data[SRC_PORT_OFF] << 8) + data[SRC_PORT_OFF + 1]
     packet['dest_port']     = (data[DEST_PORT_OFF] << 8) + data[DEST_PORT_OFF + 1]
     packet['udp_length']    = (data[UDP_LEN_OFF] << 8) + data[UDP_LEN_OFF + 1]
     packet['UDP_checksum']  = (data[UDP_CHECKSUM_OFF] << 8) + data[UDP_CHECKSUM_OFF + 1]
-    packet['data']          = ''.join(list(map(chr, [data[DATA_OFF + x] for x in range(0, packet['udp_length'] - 8)])))
+    packet['data']          = ''.join(map(chr, [data[DATA_OFF + x] for x in range(0, packet['udp_length'] - 8)]))
 
     return packet
 
@@ -96,15 +96,17 @@ def udp_send(data, dest_addr, src_addr=('127.0.0.1', 35869)):
     protocol = socket.IPPROTO_UDP 
 
     #Check the type of data
-    if type(data) != bytes:
-        data = bytes(data.encode('utf-8'))
+    try:
+        data = data.encode()
+    except AttributeError:
+        pass
 
     src_port = src_addr[1]
     dest_port = dest_addr[1]
 
     data_len = len(data)
     
-    udp_length = 8 + len(data)
+    udp_length = 8 + data_len
 
     checksum = 0
     pseudo_header = struct.pack('!BBH', zero, protocol, udp_length)
@@ -118,16 +120,16 @@ def udp_send(data, dest_addr, src_addr=('127.0.0.1', 35869)):
 def checksum_func(data):
     checksum = 0
     data_len = len(data)
-    if (data_len%2) == 1:
+    if (data_len % 2):
         data_len += 1
         data += struct.pack('!B', 0)
     
-    for i in range(0, len(data), 2):
+    for i in range(0, data_len, 2):
         w = (data[i] << 8) + (data[i + 1])
         checksum += w
 
     checksum = (checksum >> 16) + (checksum & 0xFFFF)
-    checksum = ~checksum&0xFFFF
+    checksum = ~checksum & 0xFFFF
     return checksum
 
 def ip2int(ip_addr):
@@ -146,7 +148,7 @@ def udp_recv(addr, size):
             ip_addr = struct.pack('!8B', *[data[x] for x in range(SRC_IP_OFF, SRC_IP_OFF + 8)])
             udp_psuedo = struct.pack('!BB5H', zero, protocol, packet['udp_length'], packet['src_port'], packet['dest_port'], packet['udp_length'], 0)
             
-            verify = verify_checksum(ip_addr + udp_psuedo + bytes(packet['data'].encode('utf-8')), packet['UDP_checksum'])
+            verify = verify_checksum(ip_addr + udp_psuedo + packet['data'].encode(), packet['UDP_checksum'])
             if verify == 0xFFFF:
                 print(packet['data'])
             else:
@@ -154,11 +156,11 @@ def udp_recv(addr, size):
 
 def verify_checksum(data, checksum):
     data_len = len(data)
-    if (data_len%2) == 1:
+    if (data_len % 2) == 1:
         data_len += 1
         data += struct.pack('!B', 0)
     
-    for i in range(0, len(data), 2):
+    for i in range(0, data_len, 2):
         w = (data[i] << 8) + (data[i + 1])
         checksum += w
         checksum = (checksum >> 16) + (checksum & 0xFFFF)
